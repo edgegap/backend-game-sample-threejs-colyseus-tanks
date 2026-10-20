@@ -8,6 +8,7 @@ import {
 } from "../schema/BattleState";
 import { World } from "../game/World";
 import { Block } from "../game/Block";
+import { MATCH_ROUNDS, playerJoined, playerLeft, selfStop } from "../edgegap";
 
 // ── Level data ──────────────────────────────────────────────
 export const LEVEL = [
@@ -101,6 +102,7 @@ export class BattleRoom extends Room {
   private pickSpawns: PickSpawn[] = [];
   private bulletCounter = 0;
   private pickCounter = 0;
+  private roundsPlayed = 0;
 
   onCreate() {
     // 4 teams
@@ -167,6 +169,7 @@ export class BattleRoom extends Room {
 
   // ── Join / Leave ──────────────────────────────────────────
   onJoin(client: Client) {
+    playerJoined();
     const teamId = this.pickWeakestTeam();
     this.state.teams[teamId].tanks++;
 
@@ -183,6 +186,7 @@ export class BattleRoom extends Room {
   }
 
   onLeave(client: Client) {
+    playerLeft();
     const tank = this.state.tanks.get(client.sessionId);
     if (!tank) return;
     this.state.teams[tank.team].tanks--;
@@ -502,6 +506,16 @@ export class BattleRoom extends Room {
         }
       }
       this.state.totalScore = 0;
+
+      // Edgegap match mode: after MATCH_ROUNDS wins, show the winner, then end the match
+      if (MATCH_ROUNDS > 0 && ++this.roundsPlayed >= MATCH_ROUNDS) {
+        this.lock();
+        this.clock.setTimeout(async () => {
+          await this.disconnect();
+          selfStop(`match over after ${this.roundsPlayed} round(s)`);
+        }, 5000);
+        return;
+      }
 
       // Clear winner after a brief moment (clients can read it)
       setTimeout(() => {

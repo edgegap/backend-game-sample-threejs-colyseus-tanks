@@ -6,15 +6,16 @@
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
     "loadtest": "npx tsx src/loadtest.ts --room battle --numClients 8",
-    "build": "tsc"
+    "build": "tsc",
+    "edgegap:deploy": "node scripts/edgegap-deploy.mjs"
   },
   "dependencies": {
-    "colyseus": "^0.17.0"
+    "colyseus": "^0.17.0",
+    "tsx": "^4.0.0"
   },
   "devDependencies": {
     "@colyseus/loadtest": "^0.17.8",
     "@types/node": "^22.0.0",
-    "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   }
 }

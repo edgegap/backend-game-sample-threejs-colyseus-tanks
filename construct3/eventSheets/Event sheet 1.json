@@ -12,6 +12,10 @@
 			],
 			"actions": [
 				{
+					"type": "script",
+					"script": "globalThis.game.applyServerOverride(runtime);"
+				},
+				{
 					"id": "join-or-create-room",
 					"objectClass": "Colyseus",
 					"sid": 605513789839411,

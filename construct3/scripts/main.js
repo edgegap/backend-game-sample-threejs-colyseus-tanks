@@ -620,6 +620,28 @@ globalThis.game = {
 		return this._colyseusInst;
 	},
 
+	// Edgegap / any hosted server: ?server=wss://<host>:<port> overrides the endpoint set on the
+	// Colyseus object in Layout 1. Runs right before "Join or create room".
+	applyServerOverride(runtime) {
+		const url = new URLSearchParams(globalThis.location?.search ?? "").get("server");
+		if (!url) return;
+		// Not getColyseus(): it caches the instance by lastKey/sessionId, which only exist after joining.
+		const find = (obj, depth) => {
+			if (!obj || typeof obj !== "object" || depth > 3) return null;
+			if ("endpoint" in obj && "client" in obj) return obj;
+			for (const key of Object.getOwnPropertyNames(obj)) {
+				if (!key.startsWith("_")) continue;
+				try { const found = find(obj[key], depth + 1); if (found) return found; } catch (e) {}
+			}
+			return null;
+		};
+		const c = find(runtime.objects.Colyseus.getFirstInstance(), 0);
+		if (!c) { console.error("Could not find the Colyseus SDK instance to set the endpoint"); return; }
+		c.endpoint = url;
+		c.client = new globalThis.Colyseus.Client(url);
+		console.log("Server endpoint:", url);
+	},
+
 	onJoinRoom(runtime) {
 		const c = this.getColyseus(runtime);
 		mySessionId = c.sessionId || c.room?.sessionId || "";

@@ -61,7 +61,13 @@ public class TankGame : Game
 
     const float WorldSize = 48f;
     const float ViewSize = 22f;
-    const string ServerUrl = "ws://localhost:2567";
+    const string DefaultServerUrl = "ws://localhost:2567";
+
+    // Override: --server=wss://host:port on the command line, or the TANKS_SERVER_URL env var
+    static string ServerUrl =>
+        Environment.GetCommandLineArgs().FirstOrDefault(a => a.StartsWith("--server="))?.Substring(9)
+        ?? Environment.GetEnvironmentVariable("TANKS_SERVER_URL")
+        ?? DefaultServerUrl;
 
     // ── Fields ──────────────────────────────────────────────────────────────
     readonly GraphicsDeviceManager _graphics;
