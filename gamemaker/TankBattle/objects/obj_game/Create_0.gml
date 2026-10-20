@@ -54,6 +54,12 @@ for (var i = 0; i < array_length(blocks); i++) {
 
 // --- Colyseus connection ---
 var server_url = debug_mode ? "ws://localhost:2567" : "wss://tanks-demo.colyseus.dev";
+// Override: --server=wss://host:port on the command line, or ?server=wss://host:port on HTML5
+for (var i = 0; i <= parameter_count(); i++) {
+    var arg = parameter_string(i);
+    if (string_pos("--server=", arg) == 1) server_url = string_delete(arg, 1, 9);
+    else if (string_pos("server=", arg) == 1) server_url = string_delete(arg, 1, 7);
+}
 var client = colyseus_client_create(server_url);
 global.net_room = colyseus_client_join_or_create(client, "battle", "{}");
 var net_room = global.net_room;

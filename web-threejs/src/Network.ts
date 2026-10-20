@@ -8,9 +8,17 @@ export class Network {
     this.client = new Client(serverUrl);
   }
 
-  async connect(): Promise<Room> {
-    this.room = await this.client.joinOrCreate("battle");
-    return this.room;
+  async connect(attempts = 1, retryDelayMs = 0): Promise<Room> {
+    for (let i = 1; ; i++) {
+      try {
+        this.room = await this.client.joinOrCreate("battle");
+        return this.room;
+      } catch (e) {
+        if (i >= attempts) throw e;
+        console.warn(`Connect attempt ${i} failed, retrying`, e);
+        await new Promise((r) => setTimeout(r, retryDelayMs));
+      }
+    }
   }
 
   sendMove(x: number, y: number) {

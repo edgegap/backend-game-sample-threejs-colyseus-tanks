@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { Callbacks, Room } from "@colyseus/sdk";
 import { Network } from "./Network";
+import { Matchmaker } from "./Matchmaker";
 import { TankEntity, preloadTankModel } from "./Tank";
 import { MapRenderer } from "./MapRenderer";
 import { Sound } from "./Sound";
@@ -15,6 +16,7 @@ export class Game {
   renderer: THREE.WebGLRenderer;
 
   network: Network;
+  matchmaker: Matchmaker | null = null;
   sound: Sound;
   map!: MapRenderer;
   room!: Room<BattleState>;
@@ -102,6 +104,19 @@ export class Game {
       || `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:2567`;
     this.network = new Network(serverUrl);
 
+    // Edgegap matchmaker — ?mm=<matchmaker url>&mmToken=<auth token>[&mmProfile=casual]
+    // (or VITE_MM_URL / VITE_MM_TOKEN at build time). ?server= wins over the matchmaker.
+    const mmUrl = params.get("mm") || import.meta.env.VITE_MM_URL;
+    const mmToken = params.get("mmToken") || import.meta.env.VITE_MM_TOKEN;
+    if (mmUrl && mmToken && !params.get("server")) {
+      this.matchmaker = new Matchmaker({
+        url: mmUrl,
+        token: mmToken,
+        profile: params.get("mmProfile") || import.meta.env.VITE_MM_PROFILE || "casual",
+        onStatus: (s) => { this.connectStatus.textContent = s; },
+      });
+    }
+
     // HUD refs
     this.healthFill = document.getElementById("health-fill")!;
     this.shieldFill = document.getElementById("shield-fill")!;
@@ -122,12 +137,26 @@ export class Game {
     await preloadTankModel();
 
     try {
-      this.room = await this.network.connect();
+      if (this.matchmaker) {
+        const url = await this.matchmaker.findMatch();
+        this.network = new Network(url);
+        this.connectStatus.textContent = "Connecting to server...";
+        // A server that just started can need a few more seconds before it accepts players.
+        this.room = await this.network.connect(10, 2000);
+      } else {
+        this.room = await this.network.connect();
+      }
       this.mySessionId = this.room.sessionId;
       this.connectStatus.style.display = "none";
       this.bindRoomEvents();
+      this.room.onLeave(() => {
+        this.connectStatus.textContent = "Disconnected. Reload to play again.";
+        this.connectStatus.style.display = "";
+      });
     } catch (e) {
-      this.connectStatus.textContent = "Failed to connect. Is server running?";
+      this.connectStatus.textContent = this.matchmaker
+        ? `Matchmaking failed: ${(e as Error).message}`
+        : "Failed to connect. Is server running?";
       console.error(e);
       return;
     }

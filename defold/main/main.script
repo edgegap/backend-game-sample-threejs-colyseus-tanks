@@ -366,7 +366,8 @@ function init(self)
 
 	build_level(self)
 
-	local server_url = "ws://localhost:2567"
+	-- Native: set [tanks] server_url in game.project, or launch with --config=tanks.server_url=wss://host:port
+	local server_url = sys.get_config_string("tanks.server_url", "ws://localhost:2567")
 	if html5 then
 		local param = html5.run("new URLSearchParams(window.location.search).get('server') || ''")
 		if param ~= "" then

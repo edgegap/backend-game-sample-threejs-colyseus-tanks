@@ -8,8 +8,17 @@ const TEAM_COLORS: Array[Color] = [
 ]
 const TEAM_NAMES: Array[String] = ["Red", "Blue", "Green", "Yellow"]
 
-# Server endpoint — override via command line: --server=wss://example.com
+# Server endpoint — override via command line: --server=wss://example.com (web: ?server=...)
 var server_url: String
+var direct_server := false
+
+# Edgegap matchmaker (optional) — --mm=<url> --mm-token=<token> [--mm-profile=casual]
+# (web: ?mm=...&mmToken=...&mmProfile=...). --server wins over the matchmaker.
+var mm_url := ""
+var mm_token := ""
+var mm_profile := "casual"
+var matchmaker: EdgegapMatchmaker
+var _join_attempts_left := 1
 
 # Colyseus
 var client: Colyseus.Client
@@ -75,9 +84,32 @@ func _ready() -> void:
 
 
 func _parse_args() -> void:
-	for arg in OS.get_cmdline_args():
+	for arg in OS.get_cmdline_args() + OS.get_cmdline_user_args():
 		if arg.begins_with("--server="):
 			server_url = arg.substr(9)
+			direct_server = true
+		elif arg.begins_with("--mm="):
+			mm_url = arg.substr(5)
+		elif arg.begins_with("--mm-token="):
+			mm_token = arg.substr(11)
+		elif arg.begins_with("--mm-profile="):
+			mm_profile = arg.substr(13)
+	if OS.has_feature("web"):
+		var server_param := _query_param("server")
+		if server_param != "":
+			server_url = server_param
+			direct_server = true
+		if _query_param("mm") != "":
+			mm_url = _query_param("mm")
+		if _query_param("mmToken") != "":
+			mm_token = _query_param("mmToken")
+		if _query_param("mmProfile") != "":
+			mm_profile = _query_param("mmProfile")
+
+
+func _query_param(param: String) -> String:
+	var value = JavaScriptBridge.eval("new URLSearchParams(window.location.search).get('%s') || ''" % param)
+	return str(value) if value != null else ""
 
 
 func _setup_scene() -> void:
@@ -330,6 +362,24 @@ func _setup_hud() -> void:
 # ── Networking ──
 
 func _connect_to_server() -> void:
+	var attempts := 1
+	if not direct_server and mm_url != "" and mm_token != "":
+		matchmaker = EdgegapMatchmaker.new(mm_url, mm_token, mm_profile)
+		add_child(matchmaker)
+		matchmaker.status_changed.connect(func(text: String) -> void:
+			print("[Edgegap] ", text)
+			connect_label.text = text)
+		var url := await matchmaker.find_match()
+		if url == "":
+			connect_label.text = "Matchmaking failed: " + connect_label.text
+			return
+		server_url = url
+		attempts = 10  # a server that just started can need a few more seconds
+	_join(attempts)
+
+
+func _join(attempts_left: int) -> void:
+	_join_attempts_left = attempts_left
 	print("[Game] Connecting to server: ", server_url)
 	connect_label.text = "Connecting to %s..." % server_url
 
@@ -362,6 +412,11 @@ func _on_state_changed() -> void:
 
 func _on_room_error(code: int, message: String) -> void:
 	print("[Game] Room error [", code, "]: ", message)
+	if my_session_id == "" and _join_attempts_left > 1:
+		connect_label.text = "Server starting, retrying..."
+		await get_tree().create_timer(2.0).timeout
+		_join(_join_attempts_left - 1)
+		return
 	connect_label.text = "Error [%d]: %s" % [code, message]
 	connect_label.visible = true
 

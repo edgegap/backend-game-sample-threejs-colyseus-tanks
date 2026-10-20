@@ -8,6 +8,13 @@ public class GameManager : MonoBehaviour
     [Header("Server")]
     public string serverUrl = "ws://localhost:2567";
 
+    [Header("Edgegap Matchmaker (optional)")]
+    [Tooltip("Matchmaker API URL from the Edgegap dashboard. Empty = connect to serverUrl directly.")]
+    public string matchmakerUrl = "";
+    [Tooltip("Matchmaker Auth Token (safe to ship in clients; not the Edgegap API token).")]
+    public string matchmakerToken = "";
+    public string matchmakerProfile = "casual";
+    private EdgegapMatchmaker matchmaker;
 
     private Client client;
     private Room<BattleState> room;
@@ -70,26 +77,80 @@ public class GameManager : MonoBehaviour
         if (!Debug.isDebugBuild)
             serverUrl = "wss://tanks-demo.colyseus.dev";
 
+        // Edgegap: --server=wss://<host>:<port> (WebGL: ?server=...) connects straight to a deployment;
+        // --mm=<url> --mm-token=<token> (WebGL: ?mm=...&mmToken=...) uses the matchmaker instead.
+        var directServer = LaunchArg("server", "server");
+        if (directServer != null) serverUrl = directServer;
+        matchmakerUrl = LaunchArg("mm", "mm") ?? matchmakerUrl;
+        matchmakerToken = LaunchArg("mm-token", "mmToken") ?? matchmakerToken;
+        matchmakerProfile = LaunchArg("mm-profile", "mmProfile") ?? matchmakerProfile;
+
         SetupCamera();
         BuildLevel();
         SetupLighting();
 
         try
         {
+            int attempts = 1;
+            if (directServer == null && !string.IsNullOrWhiteSpace(matchmakerUrl) && !string.IsNullOrWhiteSpace(matchmakerToken))
+            {
+                matchmaker = new EdgegapMatchmaker(matchmakerUrl, matchmakerToken, matchmakerProfile);
+                matchmaker.OnStatus += status => connectStatus = status;
+                serverUrl = await matchmaker.FindMatch();
+                attempts = 10; // a server that just started can need a few more seconds
+            }
+
             connectStatus = "Connecting...";
             Debug.Log($"Connecting to {serverUrl}...");
             client = new Client(serverUrl);
-            room = await client.JoinOrCreate<BattleState>("battle");
+            for (int attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    room = await client.JoinOrCreate<BattleState>("battle");
+                    break;
+                }
+                catch (System.Exception e) when (attempt < attempts)
+                {
+                    Debug.LogWarning($"Connect attempt {attempt} failed ({e.Message}), retrying");
+                    await Awaitable.WaitForSecondsAsync(2f);
+                }
+            }
             mySessionId = room.SessionId;
             Debug.Log($"Joined room {room.RoomId} as {mySessionId}");
             connectStatus = null;
             BindRoomEvents();
+            room.OnLeave += code => connectStatus = "Disconnected. Restart to play again.";
         }
         catch (System.Exception e)
         {
             Debug.LogError($"Connection failed: {e.Message}\n{e.StackTrace}");
-            connectStatus = "Failed to connect. Is server running?";
+            connectStatus = matchmaker != null ? $"Matchmaking failed: {e.Message}" : "Failed to connect. Is server running?";
         }
+    }
+
+    /// <summary>Reads --name=value (or -name value) from the command line, or ?queryName=value on WebGL.</summary>
+    static string LaunchArg(string name, string queryName)
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        var url = Application.absoluteURL;
+        var q = url.IndexOf('?');
+        if (q < 0) return null;
+        foreach (var pair in url.Substring(q + 1).Split('&'))
+        {
+            var kv = pair.Split(new[] { '=' }, 2);
+            if (kv.Length == 2 && kv[0] == queryName) return UnityEngine.Networking.UnityWebRequest.UnEscapeURL(kv[1]);
+        }
+        return null;
+#else
+        var args = System.Environment.GetCommandLineArgs();
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i].StartsWith($"--{name}=")) return args[i].Substring(name.Length + 3);
+            if (args[i] == $"-{name}" && i + 1 < args.Length) return args[i + 1];
+        }
+        return null;
+#endif
     }
 
     void SetupCamera()
@@ -628,6 +689,7 @@ public class GameManager : MonoBehaviour
 
     void OnDestroy()
     {
+        matchmaker?.Cancel();
         room?.Leave();
 
         // Cleanup all spawned objects
