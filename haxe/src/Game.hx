@@ -210,8 +210,22 @@ class Game {
 		s3d.camera.orthoBounds = h3d.col.Bounds.fromValues(-halfW, -halfH, 0.1, halfW * 2, halfH * 2, 200);
 	}
 
+	// Override: ?server=wss://host:port in the page URL (JS), --server=wss://host:port (HashLink/native)
+	static function serverUrl():String {
+		#if js
+		var param = new js.html.URLSearchParams(js.Browser.location.search).get("server");
+		if (param != null && param != "")
+			return param;
+		#elseif sys
+		for (arg in Sys.args())
+			if (StringTools.startsWith(arg, "--server="))
+				return arg.substr(9);
+		#end
+		return SERVER_URL;
+	}
+
 	function connect() {
-		network = new Network(SERVER_URL);
+		network = new Network(serverUrl());
 		network.connect(function(room) {
 			this.room = room;
 			mySessionId = room.sessionId;

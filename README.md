@@ -22,6 +22,10 @@ The `server/` directory contains the shared game server powered by Colyseus 0.17
 | Construct 3 | [`construct3/`](construct3/) | 2D | Web | [Kenney Top-Down Tanks](https://kenney.nl/assets/top-down-tanks-redux) (CC0) | ![Construct 3](construct3/screenshot.webp) |
 | MonoGame | [`monogame/`](monogame/) | 2D | Windows, macOS, Linux | Procedural primitives | ![MonoGame](monogame/screenshot.webp) |
 
+## Hosting on Edgegap
+
+This fork adds [Edgegap](https://edgegap.com/) hosting: one server per match, placed near its players, which stops itself when the match is over. Players reach it directly (all 9 clients) or through the Edgegap Matchmaker (Three.js, Unity and Godot clients, web and desktop). See [`edgegap/README.md`](edgegap/README.md).
+
 ## Getting Started
 
 Start the server:
