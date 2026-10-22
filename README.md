@@ -24,7 +24,7 @@ The `server/` directory contains the shared game server powered by Colyseus 0.17
 
 ## Hosting on Edgegap
 
-This fork adds [Edgegap](https://edgegap.com/) hosting: one server per match, placed near its players, which stops itself when the match is over. Players reach it directly (all 9 clients) or through the Edgegap Matchmaker (Three.js, Unity and Godot clients, web and desktop). See [`edgegap/README.md`](edgegap/README.md).
+This fork adds [Edgegap](https://edgegap.com/) hosting: one server per match, placed near its players, which stops itself when the match is over. Players reach it directly (every client has a `server` setting for a deployment's URL) or through the Edgegap Matchmaker (built into the Three.js, Unity and Godot clients). Only three clients have been run end to end on Edgegap so far: Three.js (web), Godot (desktop) and Unity (Windows). The other clients and builds have the code but were not run; see [What was tested](edgegap/README.md#what-was-tested). Setup is in [`edgegap/README.md`](edgegap/README.md).
 
 ## Getting Started
 
