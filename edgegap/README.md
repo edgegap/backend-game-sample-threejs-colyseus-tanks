@@ -2,8 +2,8 @@
 
 This fork runs the [Colyseus](https://colyseus.io/) tanks server on [Edgegap](https://edgegap.com/). Each match gets its own server, started near its players, and the server stops itself when the match is over. It supports two ways for players to reach a server:
 
-- **Direct**: you start a deployment (with a script, the dashboard or your own backend) and pass its URL to the clients. Works in all 9 clients.
-- **Edgegap Matchmaker** (optional): players click Play, the matchmaker groups them and starts a server, and every client gets its address. Built into the Three.js, Unity and Godot clients, for both web and desktop builds.
+- **Direct**: you start a deployment (with a script, the dashboard or your own backend) and pass its URL to the clients. Every client has a `server` setting for this, but only the Godot desktop client was run this way on Edgegap (see [What was tested](#what-was-tested)).
+- **Edgegap Matchmaker** (optional): players click Play, the matchmaker groups them and starts a server, and every matched client gets its address. The code is in the Three.js, Unity and Godot clients, for web and desktop builds; Three.js in the browser, Godot desktop and a Unity Windows build were run on Edgegap.
 
 ```
 Direct:      you / your backend --deploy--> Edgegap --wss://<id>.pr.edgegap.net:<port>--> clients
@@ -60,7 +60,7 @@ In the dashboard, create an application named `realtime-tanks` and a version `v1
 | Max duration | 60 min for testing |
 | Env vars (optional) | `MATCH_ROUNDS`, `EMPTY_TIMEOUT_S`, `FIRST_JOIN_TIMEOUT_S` |
 
-**TLS Upgrade** is what lets every client, browser builds included, use `wss://<id>.pr.edgegap.net:<port>`. Edgegap terminates TLS and forwards plain HTTP and WebSocket to port 2567. The Colyseus matchmaking HTTP request and the room WebSocket both go through that one port.
+**TLS Upgrade** is what lets the clients, browser builds included, use `wss://<id>.pr.edgegap.net:<port>`. Edgegap terminates TLS and forwards plain HTTP and WebSocket to port 2567. The Colyseus matchmaking HTTP request and the room WebSocket both go through that one port.
 
 ## 3a. Direct mode
 
@@ -103,14 +103,34 @@ Every client sends a ticket, shows "Searching for players...", and connects when
 
 The matchmaker code is small and has no dependencies, so it ports easily to the other clients: [`Matchmaker.ts`](../web-threejs/src/Matchmaker.ts), [`EdgegapMatchmaker.cs`](../unity/Assets/Scripts/EdgegapMatchmaker.cs), [`edgegap_matchmaker.gd`](../godot/scripts/edgegap_matchmaker.gd).
 
+**Playing alone:** with the matchmaker, a single player is never matched. The `casual` profile needs at least 2 players at every stage (the 15 s expansion keeps `min_team_size` at 2), so a lone ticket stays in "Searching for players..." until `ticket_expiration_period` (5 min) cancels it, and the client then stops with "Ticket expired before a match was found". To play alone, use direct mode: start a deployment and pass its URL to one client. The server does not wait for a second player.
+
+**Known limitation:** the server does not check that a connecting player holds a matchmaker ticket for this match, so anyone who learns the server address can join. Deployments stop themselves when no one joins or everyone leaves, which limits cost. Before production, validate each player against the match's tickets (`MM_TICKET_IDS` / the matchmaker API) or an auth token.
+
 ## What was tested
 
-Tested end to end on Edgegap on 2026-10-20 with Colyseus 0.17, matchmaker 3.3.2, Godot 4.5.2 (Colyseus Godot SDK 0.17.12) and Unity 6000.3:
+Only three of the nine clients have been run end to end on Edgegap: Three.js (web), Godot (desktop) and Unity (Windows). The others have the same `server` setting, and Godot and Unity have the matchmaker code in their web builds too, but none of them has been run against an Edgegap server.
+
+Tested on 2026-10-20 with Colyseus 0.17, matchmaker 3.3.2, Godot 4.5.2 (Colyseus Godot SDK 0.17.12) and Unity 6000.3:
 
 - Direct: Node Colyseus clients and the Godot desktop client joined a deployment over `wss://`; the server stopped itself after everyone left.
 - Matchmaker: Three.js in the browser + Godot desktop were matched onto one server, then Three.js + a Unity Windows build; the server received both ticket IDs and stopped itself once empty.
 
-The Construct 3, Defold, GameMaker, Haxe and PlayCanvas `server` overrides, the Godot web export and Unity WebGL were not run.
+| Client | Direct (`server` setting) | Edgegap Matchmaker |
+|---|---|---|
+| Three.js (web) | Not run | Tested |
+| Godot (desktop) | Tested | Tested |
+| Unity (Windows) | Not run | Tested |
+| Godot (web export) | Not run | Not run |
+| Unity (WebGL) | Not run | Not run |
+| PlayCanvas | Not run | No matchmaker code |
+| Construct 3 | Not run | No matchmaker code |
+| Defold | Not run | No matchmaker code |
+| GameMaker | Not run | No matchmaker code |
+| Haxe | Not run | No matchmaker code |
+| MonoGame | Not run | No matchmaker code |
+
+Other desktop and mobile builds (macOS, Linux, iOS, Android) were not run either.
 
 ## Going further
 
