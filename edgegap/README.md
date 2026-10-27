@@ -88,7 +88,7 @@ In a real game, your backend calls the same Deploy API (`POST /v2/deployments`) 
 
 ## 3b. Edgegap Matchmaker
 
-1. In the dashboard, open **Matchmaker → Create Matchmaker**, upload [`matchmaker-config.json`](matchmaker-config.json) and click **Create and Start**. It has one profile, `casual`: 2 to 8 players per match, and after 15 s it starts a match with whoever is waiting (at least 2).
+1. In the dashboard, open **Matchmaker → Create Matchmaker**, upload [`matchmaker-config.json`](matchmaker-config.json) and click **Create and Start**. It has one profile, `casual`: 2 to 8 players per match. Because `min_team_size` (2) is lower than `max_team_size` (8), it also makes partial matches with whoever is waiting (at least 2), with no expansion stage. Tickets expire after 30 s; keep that period short instead of adding expansions, which cost the matchmaker a lot of performance and are not needed for partial matches.
 2. When it shows **Online**, copy its **API URL** and **Auth Token**. The Auth Token is meant to ship in game clients: it can only create and read matchmaking tickets. It is not your Edgegap API token.
 3. Browser builds call the matchmaker from the page, so each origin that serves the game must be listed in `allowed_cors_origins`. The config allows `http://localhost:5173` (Vite), `:8060` (Godot web) and `:8080`. Add your real domains before going live.
 4. Start the clients with the matchmaker settings:
@@ -103,7 +103,7 @@ Every client sends a ticket, shows "Searching for players...", and connects when
 
 The matchmaker code is small and has no dependencies, so it ports easily to the other clients: [`Matchmaker.ts`](../web-threejs/src/Matchmaker.ts), [`EdgegapMatchmaker.cs`](../unity/Assets/Scripts/EdgegapMatchmaker.cs), [`edgegap_matchmaker.gd`](../godot/scripts/edgegap_matchmaker.gd).
 
-**Playing alone:** with the matchmaker, a single player is never matched. The `casual` profile needs at least 2 players at every stage (the 15 s expansion keeps `min_team_size` at 2), so a lone ticket stays in "Searching for players..." until `ticket_expiration_period` (5 min) cancels it, and the client then stops with "Ticket expired before a match was found". To play alone, use direct mode: start a deployment and pass its URL to one client. The server does not wait for a second player.
+**Playing alone:** with the matchmaker, a single player is never matched. The `casual` profile needs at least 2 players (`min_team_size`), so a lone ticket stays in "Searching for players..." until `ticket_expiration_period` (30 s) cancels it, and the client then stops with "Ticket expired before a match was found". To play alone, use direct mode: start a deployment and pass its URL to one client. The server does not wait for a second player.
 
 **Known limitation:** the server does not check that a connecting player holds a matchmaker ticket for this match, so anyone who learns the server address can join. Deployments stop themselves when no one joins or everyone leaves, which limits cost. Before production, validate each player against the match's tickets (`MM_TICKET_IDS` / the matchmaker API) or an auth token.
 
