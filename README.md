@@ -1,6 +1,6 @@
 # Demo: Realtime Tanks Multiplayer
 
-![Realtime Tanks Demo](sharing.webp)
+![Add dedicated game servers and Edgegap matchmaking to Colyseus' Realtime Tanks demo, with web, Unity and Godot clients.](docs/images/card.jpg)
 
 A multiplayer tank battle game built with [Colyseus](https://colyseus.io/). Multiple frontend implementations share the same authoritative game server.
 
