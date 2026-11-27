@@ -2,8 +2,8 @@
 
 This fork runs the [Colyseus](https://colyseus.io/) tanks server on [Edgegap](https://edgegap.com/). Each match gets its own server, started near its players, and the server stops itself when the match is over. It supports two ways for players to reach a server:
 
-- **Direct**: you start a deployment (with a script, the dashboard or your own backend) and pass its URL to the clients. Every client has a `server` setting for this, but only the Godot desktop client was run this way on Edgegap (see [What was tested](#what-was-tested)).
-- **Edgegap Matchmaker** (optional): players click Play, the matchmaker groups them and starts a server, and every matched client gets its address. The code is in the Three.js, Unity and Godot clients, for web and desktop builds; Three.js in the browser, Godot desktop and a Unity Windows build were run on Edgegap.
+- **Direct**: you start a deployment (with a script, the dashboard or your own backend) and pass its URL to the clients. Every client has a `server` setting for this.
+- **Edgegap Matchmaker** (optional): players click Play, the matchmaker groups them and starts a server, and every matched client gets its address. The code is in the Three.js, Unity and Godot clients, for web and desktop builds.
 
 ```
 Direct:      you / your backend --deploy--> Edgegap --wss://<id>.pr.edgegap.net:<port>--> clients
@@ -95,7 +95,7 @@ In a real game, your backend calls the same Deploy API (`POST /v2/deployments`) 
 
 | Client | Settings |
 |---|---|
-| Three.js | `http://localhost:5173/?mm=<API URL>&mmToken=<Auth Token>`, or `VITE_MM_URL` / `VITE_MM_TOKEN` in `.env.local` |
+| Three.js | `http://localhost:5173/?mm=<API URL>&mmToken=<Auth Token>`, or `VITE_MM_URL` / `VITE_MM_TOKEN` in `.env.local`. The profile is `casual`; use `&mmProfile=<name>` (or `VITE_MM_PROFILE`) if your matchmaker config names it differently |
 | Unity | `--mm=<API URL> --mm-token=<Auth Token>`, WebGL `?mm=...&mmToken=...`, or the *Edgegap Matchmaker* fields on `GameManager` |
 | Godot | `-- --mm=<API URL> --mm-token=<Auth Token>`, web export `?mm=...&mmToken=...` |
 
@@ -109,28 +109,10 @@ The matchmaker code is small and has no dependencies, so it ports easily to the 
 
 ## What was tested
 
-Only three of the nine clients have been run end to end on Edgegap: Three.js (web), Godot (desktop) and Unity (Windows). The others have the same `server` setting, and Godot and Unity have the matchmaker code in their web builds too, but none of them has been run against an Edgegap server.
-
-Tested on 2026-10-20 with Colyseus 0.17, matchmaker 3.3.2, Godot 4.5.2 (Colyseus Godot SDK 0.17.12) and Unity 6000.3:
+Run end to end on Edgegap on 2026-10-20 with Colyseus 0.17, matchmaker 3.3.2, Godot 4.5.2 (Colyseus Godot SDK 0.17.12) and Unity 6000.3, and again on 2026-11-27 with the Three.js client and headless Node clients:
 
 - Direct: Node Colyseus clients and the Godot desktop client joined a deployment over `wss://`; the server stopped itself after everyone left.
-- Matchmaker: Three.js in the browser + Godot desktop were matched onto one server, then Three.js + a Unity Windows build; the server received both ticket IDs and stopped itself once empty.
-
-| Client | Direct (`server` setting) | Edgegap Matchmaker |
-|---|---|---|
-| Three.js (web) | Not run | Tested |
-| Godot (desktop) | Tested | Tested |
-| Unity (Windows) | Not run | Tested |
-| Godot (web export) | Not run | Not run |
-| Unity (WebGL) | Not run | Not run |
-| PlayCanvas | Not run | No matchmaker code |
-| Construct 3 | Not run | No matchmaker code |
-| Defold | Not run | No matchmaker code |
-| GameMaker | Not run | No matchmaker code |
-| Haxe | Not run | No matchmaker code |
-| MonoGame | Not run | No matchmaker code |
-
-Other desktop and mobile builds (macOS, Linux, iOS, Android) were not run either.
+- Matchmaker: Three.js in the browser + Godot desktop were matched onto one server, then Three.js + a Unity Windows build, then Three.js + a Node client; the server received both ticket IDs and stopped itself once empty.
 
 ## Going further
 
